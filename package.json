@@ -1,0 +1,18 @@
+{
+  "name": "nico",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "croner": "^4.3.9",
+    "discord.js": "^13.6.0",
+    "meowdb": "^2.2.3"
+  }
+}
