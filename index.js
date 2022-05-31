@@ -1,27 +1,29 @@
+import config from './config.json' assert { type: 'json' };
+import path from 'node:path';
+import cron from 'croner';
+import MeowDB from 'meowdb';
+import Discord from 'discord.js';
+
 process.on('unhandledRejection', (err) => {
     console.error(err);
 });
-const config = require('./config.json');
-const cron = require('croner');
-const MeowDB = require("meowdb");
-const Discord = require('discord.js');
+
 const client = new Discord.Client({
     intents: 0,
     allowedMentions: { parse: [] },
-    presence: { status: "invisible" },
+    presence: { status: "idle", activities: [{ name: "cómo ser productivo", type: "WATCHING" }] },
     rejectOnRateLimit(data) {
         if (data.method === "patch" && data.path.includes("channels")) return true;
         return false;
     }
 });
+
 const scDb = new MeowDB({
-    dir: require("path").join(__dirname, "meowdb"),
+    dir: path.join(process.cwd(), "meowdb"),
     name: "sanciones"
 });
 
 const usedinvites = [];
-const excludeChannels = ["965079098869305366"];
-
 cron('0 0 * * *', () => {
     usedinvites.splice(0, usedinvites.length);
 });
@@ -32,12 +34,17 @@ client.on("ready", () => {
 
 client.on("interactionCreate", async (interaction) => {
     try {
-        if (interaction.guild.id !== "949034902941216798") { await interaction.reply("Este bot no es para este servidor"); return await interaction.guild.leave() };
+        if (interaction.guild.id !== config.guildId) { await interaction.reply("Este bot no es para este servidor"); return await interaction.guild.leave() };
         if (interaction.isCommand()) {
             switch (interaction.commandName) {
                 case "server-name": {
                     await interaction.guild.setName(interaction.options.getString('nombre'));
                     await interaction.reply(`El nombre del servidor ahora es: ${Discord.Util.escapeMarkdown(interaction.options.getString('nombre'))}`);
+                    break;
+                }
+                case "new-channel": {
+                    const ch = await interaction.guild.channels.create(interaction.options.getString("name"), { type: interaction.options.getString("type"), permissionOverwrites: [{ id: interaction.user.id, allow: ["MANAGE_CHANNELS", "MANAGE_ROLES"], type: "member" }], reason: `Comando new-channel hecho por ${interaction.user.tag}` });
+                    await interaction.reply(`Canal creado -> ${ch}`);
                     break;
                 }
                 case "server-icon": {
@@ -54,7 +61,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "channel-name": {
                     const canal = interaction.options.getChannel('canal', false) || await interaction.guild.channels.fetch(interaction.channelId);
-                    if (excludeChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
+                    if (!config.whatChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
                     await canal.setName(interaction.options.getString('nombre')).then(async () => await interaction.reply(`${canal.toString()}`)).catch(async (err) => {
                         if (err instanceof Discord.RateLimitError) return await interaction.reply({ content: "Puedes cambiar información del canal 2 veces cada 10 minutos. Espera un poco...", ephemeral: true });
                         return await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true });
@@ -63,7 +70,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "channel-description": {
                     const canal = interaction.options.getChannel('canal', false) || await interaction.guild.channels.fetch(interaction.channelId);
-                    if (excludeChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
+                    if (!config.whatChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
                     await canal.setTopic(interaction.options.getString('text')).then(async () => await interaction.reply(`La descripción del canal ahora es: ${Discord.Util.escapeMarkdown(interaction.options.getString('text'))}`)).catch(async (err) => {
                         if (err instanceof Discord.RateLimitError) return await interaction.reply({ content: "Puedes cambiar información del canal 2 veces cada 10 minutos. Espera un poco...", ephemeral: true });
                         return await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true });
@@ -105,7 +112,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "pedir-sancion": {
-                    const msg = await interaction.reply({ content: "Esto hará un @everyone en <#965079098869305366> donde AndreMor tomará la decisión final\nAsegúrate que tu reporte sea serio y no cualquier broma.", components: [new Discord.MessageActionRow().addComponents([new Discord.MessageButton().setCustomId("sancion_enviar").setStyle("SUCCESS").setLabel("Enviar reporte").setEmoji("✅")])], ephemeral: true, fetchReply: true });
+                    const msg = await interaction.reply({ content: `Esto hará un @everyone en <#${config.sanctionsChannel}> donde <@!${interaction.guild.ownerId}> tomará la decisión final\nAsegúrate que tu reporte sea serio y no cualquier broma.`, components: [new Discord.MessageActionRow().addComponents([new Discord.MessageButton().setCustomId("sancion_enviar").setStyle("SUCCESS").setLabel("Enviar reporte").setEmoji("✅")])], allowedMentions: { users: [interaction.guild.ownerId] }, ephemeral: true, fetchReply: true });
                     const ch = await interaction.guild.channels.fetch(interaction.channelId);
                     await ch.awaitMessageComponent({ filter: (i) => interaction.user.id === i.user.id && i.customId === "sancion_enviar" && i.message.id === msg.id, time: 10000, componentType: "BUTTON" }).then(async e => {
                         let finalsctypetext = "?";
@@ -132,7 +139,7 @@ client.on("interactionCreate", async (interaction) => {
                             .setCustomId("sancion_admin_d")
                             .setLabel("Eliminar reporte")
                             .setStyle("SECONDARY");
-                        const channel = await interaction.guild.channels.fetch("965079098869305366");
+                        const channel = await interaction.guild.channels.fetch(config.sanctionsChannel);
                         if (channel && channel instanceof Discord.TextChannel) {
                             const msg = await channel.send({ content: "@everyone", embeds: [embed], components: [new Discord.MessageActionRow().addComponents([vote_p_button, vote_r_button]), new Discord.MessageActionRow().addComponents([admin_button])], allowedMentions: { parse: ["everyone"] } });
                             scDb.create(msg.id, { creator: interaction.user.id, infractor: interaction.options.getUser("infractor").id, p: [], r: [] });
@@ -143,7 +150,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
             }
-            if (!interaction.replied) await interaction.reply({ content: "<@!577000793094488085> se durmió mientras creaba ese comando, xd", ephemeral: true }).catch(() => { });
+            if (!interaction.replied) await interaction.reply({ content: `<@!${config.ownerId}> se durmió mientras creaba ese comando, xd`, allowedMentions: { users: [config.ownerId] }, ephemeral: true }).catch(() => { });
         }
         if (interaction.isButton()) {
             switch (interaction.customId) {
