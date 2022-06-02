@@ -71,7 +71,7 @@ client.on("interactionCreate", async (interaction) => {
                 case "channel-description": {
                     const canal = interaction.options.getChannel('canal', false) || await interaction.guild.channels.fetch(interaction.channelId);
                     if (!config.whatChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
-                    if (interaction.options.isVoice()) return interaction.reply({ content: "Un canal de voz no tiene descripción...", ephemeral: true });
+                    if (interaction.channel.isVoice()) return interaction.reply({ content: "Un canal de voz no tiene descripción...", ephemeral: true });
                     await canal.setTopic(interaction.options.getString('text')).then(async () => await interaction.reply(`La descripción del canal ahora es: ${Discord.Util.escapeMarkdown(interaction.options.getString('text'))}`)).catch(async (err) => {
                         if (err instanceof Discord.RateLimitError) return await interaction.reply({ content: "Puedes cambiar información del canal 2 veces cada 10 minutos. Espera un poco...", ephemeral: true });
                         return await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true });
@@ -79,7 +79,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "pin-message": {
-                    if (interaction.options.isVoice()) return interaction.reply({ content: "No existen los mensajes fijados en canal de voz...", ephemeral: true });
+                    if (interaction.channel.isVoice()) return interaction.reply({ content: "No existen los mensajes fijados en canal de voz...", ephemeral: true });
                     const channel = await interaction.guild.channels.fetch(interaction.channelId);
                     const message = await channel.messages.fetch(interaction.options.getString('message-id'), { force: true }).catch(() => { });
                     if (!message) return await interaction.reply({ content: "ID de mensaje inválida!", ephemeral: true });
