@@ -3,6 +3,7 @@ import path from 'node:path';
 import cron from 'croner';
 import MeowDB from 'meowdb';
 import Discord from 'discord.js';
+import md5 from 'md5';
 
 process.on('unhandledRejection', (err) => {
     console.error(err);
@@ -111,6 +112,16 @@ client.on("interactionCreate", async (interaction) => {
                     if (presence.activities?.[0].type !== "STREAMING" && presence.activities?.[0].url) return interaction.reply({ content: "Sólo una actividad con tipo Transmitiendo puede tener un URL.", ephemeral: true });
                     client.user.setPresence(presence);
                     await interaction.reply("Presencia cambiada.");
+                    break;
+                }
+                case "stream-key": {
+                    const sign = md5(`/livestream/${encodeURIComponent(interaction.options.getString("stream-name"))}-${new Date(config.stream_timestamp).getTime() / 1000}-${config.stream_secret}`);
+                    const content = `Host: \`rtmp://${config.stream_host}/live/stream\`
+
+Key: \`${encodeURIComponent(interaction.options.getString("stream-name"))}?sign=${sign}\`
+
+m3u8 link: \`http://${config.stream_host}:8000/livestream/${encodeURIComponent(interaction.options.getString("stream-name"))}/index.m3u8\``
+                    await interaction.reply({ content, ephemeral: true });
                     break;
                 }
                 case "pedir-sancion": {

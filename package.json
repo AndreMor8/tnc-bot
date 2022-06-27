@@ -12,8 +12,9 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "croner": "^4.3.12",
-    "discord.js": "^13.8.0",
+    "croner": "^4.3.14",
+    "discord.js": "^13.8.1",
+    "md5": "^2.3.0",
     "meowdb": "^2.2.3"
   }
 }

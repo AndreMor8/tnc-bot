@@ -3,5 +3,8 @@
     "token": "",
     "guildId": "",
     "whatChannels": [],
-    "sanctionsChannel": ""
+    "sanctionsChannel": "",
+    "stream_secret": "",
+    "stream_timestamp": "",
+    "stream_host": ""
 }
