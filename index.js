@@ -8,7 +8,8 @@ import md5 from 'md5';
 process.on('unhandledRejection', (err) => {
     console.error(err);
 });
-
+const bitrates = { "NONE": 96_000, "TIER_1": 128_000, "TIER_2": 256_000, "TIER_3": 384_000 };
+const usedinvites = [];
 const client = new Discord.Client({
     intents: 0,
     allowedMentions: { parse: [] },
@@ -18,13 +19,11 @@ const client = new Discord.Client({
         return false;
     }
 });
-
 const scDb = new MeowDB({
     dir: path.join(process.cwd(), "meowdb"),
     name: "sanciones"
 });
 
-const usedinvites = [];
 cron('0 0 * * *', () => {
     usedinvites.splice(0, usedinvites.length);
 });
@@ -44,17 +43,38 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "new-channel": {
-                    const ch = await interaction.guild.channels.create(interaction.options.getString("name"), { type: interaction.options.getString("type"), permissionOverwrites: [{ id: interaction.user.id, allow: ["MANAGE_CHANNELS", "MANAGE_ROLES"], type: "member" }], reason: `Comando new-channel hecho por ${interaction.user.tag}` });
+                    const guild = await interaction.guild.fetch();
+                    const options = {
+                        type: interaction.options.getString("type"),
+                        permissionOverwrites: [{
+                            id: interaction.user.id,
+                            allow: ["MANAGE_CHANNELS", "MANAGE_ROLES"],
+                            type: "member"
+                        }],
+                        reason: `Comando new-channel hecho por ${interaction.user.tag}`
+                    }
+                    if (options.type === "GUILD_VOICE") {
+                        options.bitrate = bitrates[guild.premiumTier];
+                        options.userLimit = 99;
+                    }
+                    const ch = await guild.channels.create(interaction.options.getString("name"), options);
                     await interaction.reply(`Canal creado -> ${ch}`);
                     break;
                 }
                 case "server-icon": {
                     try {
-                        const final = new URL(interaction.options.getString('url'));
-                        if (!(["http:", "https:"].includes(final.protocol))) return interaction.reply({ content: "Debes introducir una URL correcta!", ephemeral: true });
-                        await interaction.guild.setIcon(final.href)
-                            .then(async () => await interaction.reply('He cambiado el ícono del servidor!'))
-                            .catch(async (err) => await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true }));
+                        const link = interaction.options.getString("url");
+                        if (link) {
+                            const final = new URL(interaction.options.getString('url'));
+                            if (!(["http:", "https:"].includes(final.protocol))) return interaction.reply({ content: "Debes introducir una URL correcta!", ephemeral: true });
+                            await interaction.guild.setIcon(final.href)
+                                .then(async () => await interaction.reply('He cambiado el ícono del servidor!'))
+                                .catch(async (err) => await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true }));
+                        } else {
+                            await interaction.guild.setIcon(null)
+                                .then(async () => await interaction.reply('He quitado el ícono del servidor!'))
+                                .catch(async (err) => await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true }));
+                        }
                     } catch (err) {
                         await interaction.reply({ content: "Debes introducir una URL correcta!", ephemeral: true });
                     }
@@ -82,6 +102,8 @@ client.on("interactionCreate", async (interaction) => {
                 case "pin-message": {
                     const channel = await interaction.guild.channels.fetch(interaction.channelId);
                     if (channel.isVoice()) return await interaction.reply({ content: "No existen los mensajes fijados en canal de voz...", ephemeral: true });
+                    const checking = await channel.messages.fetchPinned();
+                    if (checking.size >= 50) return await interaction.reply({ content: "Ya hay 50 mensajes fijados en el canal, no puedo fijar :(\nUsa este mismo comando para desfijar un mensaje, hecho eso vuelve a intentar.", ephemeral: true });
                     const message = await channel.messages.fetch(interaction.options.getString('message-id'), { force: true }).catch(() => { });
                     if (!message) return await interaction.reply({ content: "ID de mensaje inválida!", ephemeral: true });
                     if (message.pinned) await message.unpin();
