@@ -116,11 +116,11 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "stream-key": {
                     const sign = md5(`/livestream/${encodeURIComponent(interaction.options.getString("stream-name"))}-${new Date(config.stream_timestamp).getTime() / 1000}-${config.stream_secret}`);
-                    const content = `Host: \`rtmp://${config.stream_host}/live/stream\`
+                    const content = `Host: \`rtmps://${config.stream_host}:1935/live/stream\`
 
 Key: \`${encodeURIComponent(interaction.options.getString("stream-name"))}?sign=${new Date(config.stream_timestamp).getTime() / 1000}-${sign}\`
 
-m3u8 link: \`http://${config.stream_host}:8000/livestream/${encodeURIComponent(interaction.options.getString("stream-name"))}/index.m3u8\``
+m3u8 link: \`https://${config.stream_host}/${encodeURIComponent(interaction.options.getString("stream-name"))}/index.m3u8\``
                     await interaction.reply({ content, ephemeral: true });
                     break;
                 }
