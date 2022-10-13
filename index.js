@@ -1,9 +1,12 @@
-import config from './config.json' assert { type: 'json' };
+import 'dotenv/config.js';
 import path from 'node:path';
 import cron from 'croner';
 import MeowDB from 'meowdb';
 import Discord from 'discord.js';
 import md5 from 'md5';
+import http from 'http';
+
+http.createServer((req, res) => res.end("Hello world! cambio cambio cambio")).listen(process.env.PORT);
 
 process.on('unhandledRejection', (err) => {
     console.error(err);
@@ -20,7 +23,7 @@ const client = new Discord.Client({
     }
 });
 const scDb = new MeowDB({
-    dir: path.join(process.cwd(), "meowdb"),
+    dir: process.env.DATABASE || path.join(process.cwd(), "meowdb"),
     name: "sanciones"
 });
 
@@ -34,7 +37,7 @@ client.on("ready", () => {
 
 client.on("interactionCreate", async (interaction) => {
     try {
-        if (interaction.guild.id !== config.guildId) { await interaction.reply("Este bot no es para este servidor"); return await interaction.guild.leave() };
+        if (interaction.guild.id !== process.env.guildId) { await interaction.reply("Este bot no es para este servidor"); return await interaction.guild.leave() };
         if (interaction.isCommand()) {
             switch (interaction.commandName) {
                 case "server-name": {
@@ -82,7 +85,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "channel-name": {
                     const canal = interaction.options.getChannel('canal', false) || await interaction.guild.channels.fetch(interaction.channelId);
-                    if (!config.whatChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
+                    if (!process.env.whatChannels.split(",").includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
                     await canal.setName(interaction.options.getString('nombre')).then(async () => await interaction.reply(`${canal.toString()}`)).catch(async (err) => {
                         if (err instanceof Discord.RateLimitError) return await interaction.reply({ content: "Puedes cambiar información del canal 2 veces cada 10 minutos. Espera un poco...", ephemeral: true });
                         return await interaction.reply({ content: `Un error ocurrió: ${err}`, ephemeral: true });
@@ -91,7 +94,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "channel-description": {
                     const canal = interaction.options.getChannel('canal', false) || await interaction.guild.channels.fetch(interaction.channelId);
-                    if (!config.whatChannels.includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
+                    if (!process.env.whatChannels.split(",").includes(canal.id)) return await interaction.reply({ content: `No puedes cambiar cosas a este canal`, ephemeral: true });
                     if (canal.isVoice()) return interaction.reply({ content: "Un canal de voz no tiene descripción...", ephemeral: true });
                     await canal.setTopic(interaction.options.getString('text')).then(async () => await interaction.reply(`La descripción del canal ahora es: ${Discord.Util.escapeMarkdown(interaction.options.getString('text'))}`)).catch(async (err) => {
                         if (err instanceof Discord.RateLimitError) return await interaction.reply({ content: "Puedes cambiar información del canal 2 veces cada 10 minutos. Espera un poco...", ephemeral: true });
@@ -137,17 +140,17 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "stream-key": {
-                    const sign = md5(`/live/${encodeURIComponent(interaction.options.getString("stream-name"))}-${new Date(config.stream_timestamp).getTime() / 1000}-${config.stream_secret}`);
-                    const content = `Host: \`rtmp://${config.stream_host}/live\`
+                    const sign = md5(`/live/${encodeURIComponent(interaction.options.getString("stream-name"))}-${new Date(process.env.stream_timestamp).getTime() / 1000}-${process.env.stream_secret}`);
+                    const content = `Host: \`rtmp://${process.env.stream_host}/live\`
 
-Key: \`${encodeURIComponent(interaction.options.getString("stream-name"))}?sign=${new Date(config.stream_timestamp).getTime() / 1000}-${sign}\`
+Key: \`${encodeURIComponent(interaction.options.getString("stream-name"))}?sign=${new Date(process.env.stream_timestamp).getTime() / 1000}-${sign}\`
 
-m3u8 link: \`https://${config.stream_host}/live/${encodeURIComponent(interaction.options.getString("stream-name"))}/index.m3u8\``
+m3u8 link: \`https://${process.env.stream_host}/live/${encodeURIComponent(interaction.options.getString("stream-name"))}/index.m3u8\``
                     await interaction.reply({ content, ephemeral: true });
                     break;
                 }
                 case "pedir-sancion": {
-                    const msg = await interaction.reply({ content: `Esto hará un @everyone en <#${config.sanctionsChannel}> donde <@!${interaction.guild.ownerId}> tomará la decisión final\nAsegúrate que tu reporte sea serio y no cualquier broma.`, components: [new Discord.MessageActionRow().addComponents([new Discord.MessageButton().setCustomId("sancion_enviar").setStyle("SUCCESS").setLabel("Enviar reporte").setEmoji("✅")])], allowedMentions: { users: [interaction.guild.ownerId] }, ephemeral: true, fetchReply: true });
+                    const msg = await interaction.reply({ content: `Esto hará un @everyone en <#${process.env.sanctionsChannel}> donde <@!${interaction.guild.ownerId}> tomará la decisión final\nAsegúrate que tu reporte sea serio y no cualquier broma.`, components: [new Discord.MessageActionRow().addComponents([new Discord.MessageButton().setCustomId("sancion_enviar").setStyle("SUCCESS").setLabel("Enviar reporte").setEmoji("✅")])], allowedMentions: { users: [interaction.guild.ownerId] }, ephemeral: true, fetchReply: true });
                     const ch = await interaction.guild.channels.fetch(interaction.channelId);
                     await ch.awaitMessageComponent({ filter: (i) => interaction.user.id === i.user.id && i.customId === "sancion_enviar" && i.message.id === msg.id, time: 10000, componentType: "BUTTON" }).then(async e => {
                         let finalsctypetext = "?";
@@ -174,7 +177,7 @@ m3u8 link: \`https://${config.stream_host}/live/${encodeURIComponent(interaction
                             .setCustomId("sancion_admin_d")
                             .setLabel("Eliminar reporte")
                             .setStyle("SECONDARY");
-                        const channel = await interaction.guild.channels.fetch(config.sanctionsChannel);
+                        const channel = await interaction.guild.channels.fetch(process.env.sanctionsChannel);
                         if (channel && channel instanceof Discord.TextChannel) {
                             const msg = await channel.send({ content: "@everyone", embeds: [embed], components: [new Discord.MessageActionRow().addComponents([vote_p_button, vote_r_button]), new Discord.MessageActionRow().addComponents([admin_button])], allowedMentions: { parse: ["everyone"] } });
                             scDb.create(msg.id, { creator: interaction.user.id, infractor: interaction.options.getUser("infractor").id, p: [], r: [] });
@@ -185,7 +188,7 @@ m3u8 link: \`https://${config.stream_host}/live/${encodeURIComponent(interaction
                     break;
                 }
             }
-            if (!interaction.replied) await interaction.reply({ content: `<@!${config.ownerId}> se durmió mientras creaba ese comando, xd`, allowedMentions: { users: [config.ownerId] }, ephemeral: true }).catch(() => { });
+            if (!interaction.replied) await interaction.reply({ content: `<@!${process.env.ownerId}> se durmió mientras creaba ese comando, xd`, allowedMentions: { users: [process.env.ownerId] }, ephemeral: true }).catch(() => { });
         }
         if (interaction.isButton()) {
             switch (interaction.customId) {
@@ -266,4 +269,4 @@ m3u8 link: \`https://${config.stream_host}/live/${encodeURIComponent(interaction
     }
 });
 
-client.login(config.token);
+client.login();

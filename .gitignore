@@ -1,4 +1,4 @@
-/config.json
-/meowdb
-/node_modules
-/package-lock.json
+.env
+meowdb/
+node_modules/
+package-lock.json
