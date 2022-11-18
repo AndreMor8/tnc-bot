@@ -132,7 +132,7 @@ client.on("interactionCreate", async (interaction) => {
                             url: interaction.options.getString("url")
                         }];
                     }
-                    if(presence.activities?.[0].name && (!presence.activities?.[0].type)) return interaction.reply({ content: "Es necesario poner un tipo de actividad al poner nombre", ephemeral: true });
+                    if (presence.activities?.[0].name && (!presence.activities?.[0].type)) return interaction.reply({ content: "Es necesario poner un tipo de actividad al poner nombre", ephemeral: true });
                     if ((typeof presence.activities?.[0].type === "number") && !presence.activities?.[0].name) return interaction.reply({ content: "La actividad debe tener un nombre!", ephemeral: true });
                     if ((typeof presence.activities?.[0].type === "number") === 1 && !presence.activities?.[0].url) return interaction.reply({ content: "Una actividad con tipo Transmitiendo debe tener un URL de Twitch.", ephemeral: true });
                     if ((typeof presence.activities?.[0].type === "number") !== 1 && presence.activities?.[0].url) return interaction.reply({ content: "Sólo una actividad con tipo Transmitiendo puede tener un URL.", ephemeral: true });
