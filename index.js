@@ -13,7 +13,7 @@ const usedinvites = [];
 const client = new Discord.Client({
     intents: 0,
     allowedMentions: { parse: [] },
-    presence: { status: "idle", activities: [{ name: "cómo ser productivo", type: 3 }] },
+    presence: { status: "invisible" },
     rest: {
         rejectOnRateLimit(data) {
             if (data.method === "PATCH" && data.route.includes("channels")) return true;
@@ -123,19 +123,20 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "presence": {
-                    const presence = {};
+                    const presence = { activities: [] };
                     if (interaction.options.getString("estado")) presence.status = interaction.options.getString("estado");
                     if (interaction.options.getString("nombre") || interaction.options.getString("tipo") || interaction.options.getString("url")) {
-                        presence.activities = [{
+                        presence.activities.push({
                             name: interaction.options.getString("nombre"),
                             type: parseInt(interaction.options.getString("tipo")),
                             url: interaction.options.getString("url")
-                        }];
+                        });
                     }
-                    if (presence.activities?.[0].name && (!presence.activities?.[0].type)) return interaction.reply({ content: "Es necesario poner un tipo de actividad al poner nombre", ephemeral: true });
-                    if ((typeof presence.activities?.[0].type === "number") && !presence.activities?.[0].name) return interaction.reply({ content: "La actividad debe tener un nombre!", ephemeral: true });
-                    if ((typeof presence.activities?.[0].type === "number") === 1 && !presence.activities?.[0].url) return interaction.reply({ content: "Una actividad con tipo Transmitiendo debe tener un URL de Twitch.", ephemeral: true });
-                    if ((typeof presence.activities?.[0].type === "number") !== 1 && presence.activities?.[0].url) return interaction.reply({ content: "Sólo una actividad con tipo Transmitiendo puede tener un URL.", ephemeral: true });
+                    const hasType = typeof presence.activities?.[0]?.type === "number";
+                    if (presence.activities?.[0]?.name && (!hasType)) return interaction.reply({ content: "Es necesario poner un tipo de actividad al poner nombre", ephemeral: true });
+                    if (hasType && (!presence.activities?.[0]?.name)) return interaction.reply({ content: "La actividad debe tener un nombre!", ephemeral: true });
+                    if ((presence.activities?.[0]?.type === 1) && (!presence.activities?.[0]?.url)) return interaction.reply({ content: "Una actividad con tipo Transmitiendo debe tener un URL de Twitch.", ephemeral: true });
+                    if ((presence.activities?.[0]?.type !== 1) && (presence.activities?.[0]?.url)) return interaction.reply({ content: "Sólo una actividad con tipo Transmitiendo puede tener un URL.", ephemeral: true });
                     client.user.setPresence(presence);
                     await interaction.reply("Presencia cambiada.");
                     break;
